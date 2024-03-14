@@ -1,0 +1,78 @@
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'BN, May 2019
+'Customer: KVF
+'The customer enters comments when processing a WO from the gui. 
+'They want to add comments based on text codes already stored in Global Shop at the GUI>Update Jobs
+
+F.Intrinsic.Control.Try
+	v.Local..BulkDeclareString(sError,sRet,sComments)
+	v.Local.iCnt.Declare
+	v.Local.sHold.Declare
+	v.Local.sAddedComments.Declare
+	v.Local.sSelectedFromBrowser.Declare
+	v.Local.sNewComments.Declare
+	v.Local.sCurrentComment.Declare
+	v.Local.iStartIndexToAdd.Declare
+	v.Local.iPToSet.Declare
+	v.Local.sPToSet.Declare
+	v.Local.iHold.Declare	
+
+	f.Intrinsic.Control.If(v.Caller.Hook,=,25600)
+		v.Local.sCurrentComment.Set(Variable.Passed.000001)
+		f.Intrinsic.String.Split(v.Local.sCurrentComment,v.Ambient.NewLine,v.Local.sCurrentComment)
+		f.Intrinsic.Math.Add(v.Local.sCurrentComment.Ubound,1,v.Local.iStartIndexToAdd)
+		
+		f.ODBC.Connection!conx.OpenCompanyConnection
+		
+		'Open Browser
+		F.Intrinsic.UI.SetBrowserHotTypeAhead(True)
+		Function.Intrinsic.UI.Browser("Select Text","conx","SELECT NUMBER as Code,Convert(TEXT,SQL_Char) as TEXT  FROM V_TEXT_CODES order by Code","Code*!*Text","300*!*1000",V.Local.sRet)	
+		'Browser Select/Cancel
+		F.Intrinsic.Control.If(Variable.Local.sRet.IsCancel,=,False)
+			F.Intrinsic.String.Split(Variable.Local.sRet,"*!*",Variable.Local.sRet)
+			f.Intrinsic.String.Split(v.Local.sRet(1),v.Ambient.NewLine,v.Local.sSelectedFromBrowser)
+			'Populate each line from selected comments to each passed variable.
+			f.Intrinsic.Control.For(v.Local.iCnt,0,v.Local.sSelectedFromBrowser.UBound)
+				f.Intrinsic.Math.Add(v.Local.iCnt,v.Local.iStartIndexToAdd,v.Local.iPToSet)
+				f.Intrinsic.Math.Add(v.Local.iPToSet,9000,v.Local.iHold)
+				f.Intrinsic.Control.If(v.Local.iHold,<,9888)
+					f.Intrinsic.String.LPad(v.Local.iHold,"0",6,v.Local.sPToSet)
+					v.Local.sHold.Set(v.Local.sSelectedFromBrowser(v.Local.iCnt))
+					f.Intrinsic.String.Trim(v.Local.sHold,v.Local.sHold)
+					v.Passed.[v.Local.sPToSet].Set(v.Local.sHold.left300)
+				f.Intrinsic.Control.EndIf
+			f.Intrinsic.Control.Next(v.Local.iCnt)		
+		F.Intrinsic.Control.EndIf	
+		
+		f.ODBC.Connection!conx.Close
+		
+	'Endif of (v.Caller.Hook,=,25600)
+	f.Intrinsic.Control.EndIf
+	
+	f.Intrinsic.Control.CallSub("Unload")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	f.Intrinsic.Control.CallSub("Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.Unload.Start
+f.Intrinsic.Control.Try
+	v.Local.sError.Declare
+	
+	f.Intrinsic.Control.If(v.ODBC.conx.State,=,1)
+		f.ODBC.Connection!conx.Close
+	f.Intrinsic.Control.EndIf
+	f.Intrinsic.Control.End
+	
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.Unload.End
